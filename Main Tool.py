@@ -9,7 +9,7 @@ from tkinter import filedialog #used to interract with files on the users comput
 from random import randint #needed to generate random characters for password generation module
 from Crypto.Random import get_random_bytes #The get_random_bytes function in this module generates a specified number of random bytes, which can be used as a salt for a key in cryptographic operations.
 from Crypto.Protocol.KDF import PBKDF2 #PBKDF2 used for extra layer of security, using password based encryption within AES
-from Crypto.Cipher import AES #main library were using for encryption and decryption
+from Crypto.Cipher import AES #main library were using for symmetric encryption and decryption
 from Crypto.Util.Padding import pad, unpad
 import requests #module needed to pull text from urls in username generation module
 import random
@@ -128,39 +128,67 @@ def encrypt_text():
 
 def decrypt_text():    
     if myCombo_decrypt.get() == 'RSA-2048':
-        with open('private.pem', 'rb') as f:
+        with open('private.pem', 'rb') as f:       #opening the rsa2048 keyfile and storing in variable
             private_key2048 = rsa.PrivateKey.load_pkcs1(f.read())
 
-        encrypted_msg = myText_Decrypt.get("1.0", "end-1c").encode('utf-8')
+        encrypted_msg = myText_Decrypt.get("1.0", "end-1c").encode('utf-8')    #stroring text boxs' encrypted contents into variable
 
         try:
-            clear_msg = rsa.decrypt(encrypted_msg, private_key2048)
+            clear_msg = rsa.decrypt(encrypted_msg, private_key2048)   #decrypts encrypted message and stores in variable
             clear_msg = clear_msg.decode('utf-8')
 
             myText_Decrypt.delete(1.0, 'end')
             myText_Decrypt.insert(1.0, clear_msg)
-        except rsa.DecryptionError:
+        except rsa.DecryptionError:                                 #error validation indicating when decryption isn't successful
             messagebox.showerror("Error", "Decryption failed. Make sure the correct private key is loaded.")
 
     elif myCombo_decrypt.get() == 'RSA-1024':
         with open('private_1024.pem','rb') as f:
             private_key1024 = rsa.PrivateKey.load_pkcs1(f.read())
 
-        encrypted_msg = myText_Decrypt.get("1.0", "end-1c").encode('utf-8')              # would work if you decrypt the contents of encrypted_message.txt file: encrypted_msg = open('encrypted_message.txt','rb').read()
+        encrypted_msg = myText_Decrypt.get("1.0", "end-1c").encode('utf-8')   # would work if you decrypt the contents of encrypted_message.txt file: encrypted_msg = open('encrypted_message.txt','rb').read()
+        try:
+            clear_msg = rsa.decrypt(encrypted_msg, private_key1024)
+            clear_msg = clear_msg.decode('utf-8')
+       
+            myText_Decrypt.delete(1.0,'end')
+            myText_Decrypt.insert(1.0,clear_msg)
+        except rsa.DecryptionError:
+           messagebox.showerror("Error", "Decryption failed. Make sure the correct private key is loaded.")
 
-        clear_msg = rsa.decrypt(encrypted_msg, private_key1024)
-        clear_msg = clear_msg.decode('utf-8')
-        
-        myText_Decrypt.delete(1.0,'end')
-        myText_Decrypt.insert(1.0,clear_msg)
     
     elif myCombo_decrypt.get() == 'AES-128':
+        data =  myText_Decrypt.get(1.0,END)                #storing content to decrypt in variable
+        with open('encrypted_message.txt','wb') as f:   
+          f.write(data)            #writing data which is already encrypted into file to minipulate there
+        iv = f.read(16)            #creating IV from reading file and storing
+        decrypt_data =  f.read()  
+        f.close()                 
+        with open('aes_128_key.bin','rb') as f:           #opening keyfile and storing key in variable
+          key = f.read()
+          f.close()
+        
+        cipher = AES.new(key, AES.MODE_CBC, iv=iv)   
+        original = unpad(cipher.decrypt(decrypt_data), AES.block_size)
+        #initializes AES cipher for decryption using key and IV in (CBC) mode.
+
+        response = messagebox.askquestion("Options", "Press 'yes' to store encrypted message in a txt file OR press 'no' to only put it in the text box")
+        if response == 'yes':
+            myText_Decrypt.insert(1.0,original)  #inserting cleartext msg into text box
+            success_msg = messagebox.showinfo("Successful!","Your decrypted message can be found in the text box")
+        elif response == 'no':
+            with open ('decrypted_message.txt','wb') as f: 
+                f.write(original) #Storing cleartext message in txt file
+            success_msg = messagebox.showinfo("Successful!","Your decrypted message can be found in the 'decrypted message' txt file")
+                
+
+    elif myCombo_decrypt.get() == 'AES-192':
         data =  myText_Decrypt.get(1.0,END)
         with open('encrypted_message.txt','wb') as f:
           f.write(data)
         iv = f.read(16)
         decrypt_data =  f.read()
-        with open('aes_128_key.bin','rb') as f:
+        with open('aes_192_key.bin','rb') as f:
           key = f.read()
         
         cipher = AES.new(key, AES.MODE_CBC, iv=iv)
@@ -174,12 +202,28 @@ def decrypt_text():
             with open ('decrypted_message.txt','wb') as f:
                 f.write(original)
             success_msg = messagebox.showinfo("Successful!","Your decrypted message can be found in the 'decrypted message' txt file")
-                
 
-    elif myCombo_decrypt.get() == 'AES-192':
-        return
     elif myCombo_decrypt.get() == 'AES-256':
-        return
+        data =  myText_Decrypt.get(1.0,END)
+        with open('encrypted_message.txt','wb') as f:
+          f.write(data)
+        iv = f.read(16)
+        decrypt_data =  f.read()
+        with open('aes_256_key.bin','rb') as f:
+          key = f.read()
+        
+        cipher = AES.new(key, AES.MODE_CBC, iv=iv)
+        original = unpad(cipher.decrypt(decrypt_data), AES.block_size)
+
+        response = messagebox.askquestion("Options", "Press 'yes' to store encrypted message in a txt file OR press 'no' to only put it in the text box")
+        if response == 'yes':
+            myText_Decrypt.insert(1.0,original)
+            success_msg = messagebox.showinfo("Successful!","Your decrypted message can be found in the text box")
+        elif response == 'no':
+            with open ('decrypted_message.txt','wb') as f:
+                f.write(original)
+            success_msg = messagebox.showinfo("Successful!","Your decrypted message can be found in the 'decrypted message' txt file")
+
 #--------------------------------------------------------------hashing algorithms------------------------------------------------------------------------------
 
 def Hash_function():
@@ -352,7 +396,7 @@ def load_keys_rsa1024():
     # Load keys from files
     try:
         with open('public_rsa_1024.pem', 'rb') as f:
-            public_key1024 = rsa.PublicKey.load_pkcs1(f.read())
+            public_key1024 = rsa.PublicKey.load_pkcs1_openssl_pem(f.read())
         with open('private_rsa_1024.pem', 'rb') as f:
             private_key1024 = rsa.PrivateKey.load_pkcs1(f.read())
     except FileNotFoundError:
@@ -990,7 +1034,7 @@ def animate_dots():
        dot_label.destroy()
 #---------------------------------------------------------------------Signup page-----------------------------------------------------
 def signup_screen():
-   global passwbox,userbox,signup_frame
+   global signup_frame
    clear_pages()
 
    update_sidemenu_visibility()  
@@ -1003,78 +1047,71 @@ def signup_screen():
 
    label = Label(signup_frame, text='CREATE AN ACCOUNT', font='BarlowCondensed-Medium',bg='#d3d3d3',fg='black').pack(pady=10,padx=10)
 
-   signup_nav = tk.Button(signup_frame, text = 'Signup',bd=0,activeforeground='#0097e8',fg='black',font=('Arial', 12),width=13,cursor='hand2',command=signup_screen)
+   signup_nav = tk.Button(signup_frame, text = 'Signup',bd=0,activeforeground='#0097e8',command= signup_screen,fg='black',font=('Arial', 12),width=13,cursor='hand2')
    signup_nav.place(x=0,y=0)
    signup_indicator = tk.Label(signup_frame, text="", bg='#a9a9a9') #making the colour of the indicator the same background colour as the button so it dosent change unless the button was been pressed
    signup_indicator.place(x=10, y=25, width=65, height=5) #placing indicator next to the page navigation button
 
-
-   login_navigation= tk.Button(signup_frame, text = 'Login',bd=0,activeforeground='#0097e8',fg='black',font=('Arial', 12),width=13,cursor='hand2',command = login_screen)
+   login_navigation= tk.Button(signup_frame, text = 'Login',bd=0,activeforeground='#0097e8',command = login_screen,fg='black',font=('Arial', 12),width=13,cursor='hand2')
    login_navigation.place(x=100,y=0)
    login_indicator = tk.Label(signup_frame, text="", bg='#a9a9a9') #making the colour of the indicator the same background colour as the button so it dosent change unless the button was been pressed
    login_indicator.place(x=120, y=25, width=65, height=5) #placing indicator next to the page navigation button 
 
-
-   signup_button = Button(signup_frame, text='Signup', fg='black', bg='#d3d3d3', width=12,cursor='hand2', command=signup)
+   signup_button = Button(signup_frame, text='Signup', fg='black', command = lambda: signup(passwbox.get(),userbox.get()), bg='#d3d3d3', width=12,cursor='hand2')
    signup_button.place(x=160, y=280)
    
-
-
-   passwbox = Entry(signup_frame,width=30,borderwidth=3,fg='black')
-   passwbox.pack(padx=100,pady=50)
-   userbox = Entry(signup_frame,width=30,borderwidth=3,fg='black',show='*')
-   userbox.pack()
+   userbox = Entry(signup_frame,width=30,borderwidth=3,fg='black')
+   userbox.pack(padx=100,pady=50)
+   passwbox = Entry(signup_frame,width=30,borderwidth=3,fg='black',show='*')
+   passwbox.pack()
 
    user_field = Label(signup_frame,text='USERNAME:',fg='black',bg='#c0c0c0').place(x=40,y=135)
    passwbox_field = Label(signup_frame, text='PASSWORD:',fg='black',bg='#c0c0c0').place(x=40,y=210)
 
-   return_to_login_button = Button(signup_frame, text='Click here to return to login page', fg='black', bg='#c0c0c0',bd=0,cursor='hand2',command=login_screen)
+   return_to_login_button = Button(signup_frame, text='Click here to return to login page', fg='black',command=login_screen, bg='#c0c0c0',bd=0,cursor='hand2')
    return_to_login_button.place(x=120, y=360)
 
    signup_frame.pack(fill=tk.BOTH,expand=TRUE)
 
 #----------------------------------------------------------Login page--------------------------------------------------------------------------
 def login_screen():   # x-30 ,,,  y+30
-   
-   #making these variales global so they can be accessed by other functions
+   #can be accessed by other functions
    global userbox,passwbox,logging_in_frame, signup_indicator,login_indicator
     
    splash_root.withdraw() #hides the splash screen once this page is opened. destroying causes error in navigating signup/signin menu
    clear_pages()
    logging_in_frame = tk.Frame(main_frame,bg='#c0c0c0')
    
-
    logging_menu_fm=tk.Frame(logging_in_frame,bg='#c0c0c0')
    logging_menu_fm.pack()
    logging_menu_fm.pack_propagate(False)
    logging_menu_fm.configure(width =500, height=35)
 
-
-   signup_nav = tk.Button(logging_menu_fm, text = 'Signup',bd=0,activeforeground='#0097e8',fg='black',font=('Arial', 12),width=13,cursor='hand2',command= signup_screen)
+   signup_nav = tk.Button(logging_menu_fm, text = 'Signup',bd=0,activeforeground='#0097e8',command= signup_screen,fg='black',font=('Arial', 12),width=13,cursor='hand2')
    signup_nav.place(x=0,y=0)
    signup_indicator = tk.Label(logging_in_frame, text="", bg='#a9a9a9') #making the colour of the indicator the same background colour as the button so it dosent change unless the button was been pressed
    signup_indicator.place(x=10, y=25, width=65, height=5) #placing indicator next to the page navigation button
 
-   login_navigation= tk.Button(logging_menu_fm, text = 'Login',bd=0,activeforeground='#0097e8',fg='black',font=('Arial', 12),width=13,cursor='hand2',command = login_screen)
+   login_navigation= tk.Button(logging_menu_fm, text = 'Login',bd=0,activeforeground='#0097e8',command = login_screen,fg='black',font=('Arial', 12),width=13,cursor='hand2')
    login_navigation.place(x=100,y=0)
    login_indicator = tk.Label(logging_in_frame, text="", bg='#a9a9a9') #making the colour of the indicator the same background colour as the button so it dosent change unless the button was been pressed
    login_indicator.place(x=120, y=25, width=65, height=5) #placing indicator next to the page navigation button 
 
    label = Label(logging_in_frame, text='ACCESS PORTAL', font='BarlowCondensed-Medium',bg='#d3d3d3',fg='black').pack(pady=10,padx=10)
 
-   passwbox = Entry(logging_in_frame,width=30,borderwidth=3,fg='black')
-   passwbox.pack(padx=100,pady=50)
-   userbox = Entry(logging_in_frame,width=30,borderwidth=3,fg='black',show='*')
-   userbox.pack()
+   userbox = Entry(logging_in_frame,width=30,borderwidth=3,fg='black')
+   userbox.pack(padx=100,pady=50)
+   passwbox = Entry(logging_in_frame,width=30,borderwidth=3,fg='black',show='*')
+   passwbox.pack()
 
    user_field = Label(logging_in_frame,text='USERNAME:',fg='black',bg='#c0c0c0').place(x=40,y=135)
    passwbox_field = Label(logging_in_frame, text='PASSWORD:',fg='black',bg='#c0c0c0').place(x=40,y=210)
 
-   log_button = Button(logging_in_frame, text='Login', fg='black', bg='#d3d3d3', width=12,cursor='hand2', command=logon)
+   log_button = Button(logging_in_frame, text='Login', command= lambda: logon(passwbox.get(),userbox.get()), fg='black', bg='#d3d3d3', width=12,cursor='hand2')
    log_button.place(x=205, y=210)
    log_button.pack(padx=30, pady=30)
 
-   signup_button = Button(logging_in_frame, text='Dont already have an account? Sign up here', fg='black', bg='#c0c0c0',bd=0,cursor='hand2',command=signup_screen)
+   signup_button = Button(logging_in_frame, text='Dont already have an account? Sign up here',command=signup_screen, fg='black', bg='#c0c0c0',bd=0,cursor='hand2')
    signup_button.place(x=350, y=300)
    signup_button.pack(padx=30, pady=30)
 
@@ -1097,10 +1134,10 @@ def update_sidemenu_visibility():
         sidemenu_frame.pack_forget()
 
 #--------------------------------------------------Account login function--------------------------------------------------------
-def logon(): 
-   username = userbox.get()
-   password = passwbox.get()
-    
+def logon(passwbox,userbox): 
+   username = userbox
+   password = passwbox
+
    if username != '' and password != '':
        c.execute('SELECT password FROM users WHERE username=?',[username])
        result = c.fetchone()
@@ -1108,33 +1145,42 @@ def logon():
            if bcrypt.checkpw(password.encode('utf-8'),result[0]):
                update_authentication_status(True)
                encryption_page()
+               messagebox.showinfo('successful','You have been logged in successfully')
            else:
                messagebox.showinfo('Logon','Incorrect username or password')
    else:
        messagebox.showerror('oops','looks like you missed something')
-#--------------------------------------------------Account signup funtion----------------------------------------------------------
-
-def signup():
-    global userbox,passwbox
-    username = userbox.get()
-    password = passwbox.get()
-
-    #before hashing we encode the password using utf-8
-    encoded_password = password.encode('utf-8')
-    #here we salt the password to hash it
-    hashed_password = bcrypt.hashpw(encoded_password,bcrypt.gensalt())
-
-    if username != '' and password != '':
-       c.execute('SELECT username FROM users WHERE username=?',[username])
-       if c.fetchone() is not None:
-          messagebox.showerror('error','Username already exists')
-          return
-       else:
-          c.execute('INSERT INTO users (username, password) VALUES (?, ?)', [username,hashed_password])
-          conn.commit()
-          messagebox.showinfo('success','Your account has been succesfully created')                                       
+#--------------------------------------------------Signup password validation-----------------------------------------------------
+def validate_password(password):
+    if len(password) < 8:
+        return False
     else:
-       messagebox.showerror('error','Oops, you seemed to have missed something')
+        return True
+
+#--------------------------------------------------Account signup function----------------------------------------------------------
+def signup(passwbox,userbox):
+    username = userbox
+    password = passwbox
+
+    validated = validate_password(password)  # Check password validation
+
+    if validated:
+        # Before hashing, encode the password using utf-8
+        encoded_password = password.encode('utf-8')
+        # Salt the password to hash it
+        hashed_password = bcrypt.hashpw(encoded_password, bcrypt.gensalt())
+
+        if username != '' and password != '':
+            c.execute('SELECT username FROM users WHERE username=?', [username])
+            if c.fetchone() is not None:
+                messagebox.showerror('Error', 'Username already exists')
+                return
+            else:
+                c.execute('INSERT INTO users (username, password) VALUES (?, ?)', [username, hashed_password])
+                conn.commit()
+                messagebox.showinfo('Success', 'Your account has been successfully created')
+    else:
+        messagebox.showerror('Oops', 'Your password must be a minimum of 8 characters')
 
 #--------------------------------------------creating database conncection----------------------------------------------------------------------
 conn = sqlite3.connect('credentials.db')
@@ -1192,7 +1238,6 @@ main_frame = tk.Frame(root)
 main_frame.pack(side = tk.RIGHT)
 main_frame.pack_propagate(False)
 main_frame.configure(height=700, width=425, bg='#c0c0c0')
-
 
 #---------------------------Creating side menu for the tools main page --------------------------------------------------------------------------------------------------
 
